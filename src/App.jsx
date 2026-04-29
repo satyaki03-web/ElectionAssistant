@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { electionData } from './data/electionData';
 import InteractiveMap from './components/InteractiveMap';
-import { Globe, Clock, Users, AlertTriangle, MessageSquare, ArrowRight } from 'lucide-react';
+import { Globe, Clock, Users, AlertTriangle, MessageSquare, ArrowRight, X, Home, Map as MapIcon } from 'lucide-react';
 import './App.css';
 
 function App() {
+  const [view, setView] = useState('dashboard');
   const [selectedCountry, setSelectedCountry] = useState('India');
   const [activePhaseId, setActivePhaseId] = useState(null);
   const [chatMessages, setChatMessages] = useState([
@@ -74,13 +75,30 @@ function App() {
     }, 1000);
   };
 
+  if (view === 'dashboard') {
+    return (
+      <div className="dashboard-view animate-fade-in">
+        <div className="dashboard-content glass">
+          <Globe className="text-primary mb-4" size={64} color="#3b82f6" />
+          <h1 className="dashboard-title">Election Education Assistant</h1>
+          <p className="dashboard-subtitle">Explore the democratic electoral process, timelines, and voting centers of countries around the world.</p>
+          
+          <button className="explore-btn" onClick={() => setView('app')}>
+            <MapIcon size={20} />
+            Explore Timelines
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       {/* Header Section */}
       <header className="header glass animate-fade-in">
-        <div className="title-section">
-          <Globe className="text-primary" size={28} color="#3b82f6" />
-          <h1 className="title">Election Education Assistant</h1>
+        <div className="title-section" style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setView('dashboard')} title="Back to Dashboard">
+          <Home className="text-primary" size={28} color="#3b82f6" />
+          <h1 className="title hover-shrink">Election Education Assistant</h1>
         </div>
         
         <div className="country-selector">
@@ -133,15 +151,20 @@ function App() {
           {activePhase ? (
             <div className="details-card glass animate-fade-in" style={{ borderTop: `4px solid ${activePhase.colorCode}` }}>
               <div className="details-header">
-                <div className="details-icon" style={{ color: activePhase.colorCode }}>
-                  <Globe size={32} />
-                </div>
-                <div>
-                  <h2 className="details-title">{activePhase.title}</h2>
-                  <div className="step-duration" style={{ fontSize: '1rem' }}>
-                    <Clock size={16} /> {activePhase.duration}
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', flex: 1 }}>
+                  <div className="details-icon" style={{ color: activePhase.colorCode }}>
+                    <Globe size={32} />
+                  </div>
+                  <div>
+                    <h2 className="details-title">{activePhase.title}</h2>
+                    <div className="step-duration" style={{ fontSize: '1rem' }}>
+                      <Clock size={16} /> {activePhase.duration}
+                    </div>
                   </div>
                 </div>
+                <button className="close-btn" onClick={() => setActivePhaseId(null)} title="Close Details">
+                  <X size={24} />
+                </button>
               </div>
               
               <p className="details-description">{activePhase.description}</p>
