@@ -2,17 +2,23 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { electionData } from './data/electionData';
 import { analytics } from './lib/firebase';
 import { logEvent } from 'firebase/analytics';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import InteractiveMap from './components/InteractiveMap';
-import { Globe, Clock, Users, AlertTriangle, MessageSquare, ArrowRight, X, Home, Map as MapIcon } from 'lucide-react';
+import { Globe, Clock, Users, AlertTriangle, MessageSquare, ArrowRight, X, Home, Map as MapIcon, Loader2 } from 'lucide-react';
 import './App.css';
+
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 function App() {
   const [view, setView] = useState('dashboard');
   const [selectedCountry, setSelectedCountry] = useState('India');
   const [activePhaseId, setActivePhaseId] = useState(null);
   const [chatMessages, setChatMessages] = useState([
-    { type: 'bot', text: 'Hi! I am your Election Education Assistant. Select a phase on the left to learn more, or ask me a question below.' }
+    { type: 'bot', text: 'Hi! I am your Election Education Assistant powered by Gemini. Select a phase on the left to learn more, or ask me a question below.' }
   ]);
+  const [isBotTyping, setIsBotTyping] = useState(false);
 
   const countries = useMemo(() => Object.keys(electionData), []);
   const timelineData = useMemo(() => electionData[selectedCountry], [selectedCountry]);
@@ -37,27 +43,27 @@ function App() {
 
   const [chatInput, setChatInput] = useState("");
 
-  const handleChatPreset = (question) => {
+  const handleChatPreset = async (question) => {
     const newMessages = [...chatMessages, { type: 'user', text: question }];
     setChatMessages(newMessages);
+    setIsBotTyping(true);
     
-    // Simulate bot response
-    setTimeout(() => {
-      let botResponse = "That's a great question! In general, the election commission ensures fairness by monitoring all activities. If anything goes wrong, there are legal frameworks in place to challenge the outcome.";
+    try {
+      const prompt = `You are a helpful and concise election education assistant. The user is asking about the election process in ${selectedCountry}. Answer this question briefly in 2-3 sentences: ${question}`;
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
       
-      if (question.includes("tie")) {
-        if (selectedCountry === 'UK') botResponse = "In the UK, if there is an exact tie (a 'dead heat'), the Returning Officer decides the winner by drawing straws or tossing a coin!";
-        if (selectedCountry === 'USA') botResponse = "In the US Electoral College, if no candidate reaches 270 votes (a tie or 3rd party split), the House of Representatives chooses the President.";
-        if (selectedCountry === 'India') botResponse = "In India, if there's a tie, the Returning Officer draws a lot (like a lottery) to decide the winner.";
-      } else if (question.includes("voting work")) {
-        botResponse = `In ${selectedCountry}, the voting process mainly involves registered citizens visiting a polling booth on Election Day. Make sure you check the "Voting Day" phase on the timeline for specific details!`;
-      }
-      
-      setChatMessages(prev => [...prev, { type: 'bot', text: botResponse }]);
-    }, 800);
+      setChatMessages(prev => [...prev, { type: 'bot', text }]);
+    } catch (error) {
+      console.error("Gemini Error:", error);
+      setChatMessages(prev => [...prev, { type: 'bot', text: "Sorry, I encountered an error connecting to the AI. Please try again." }]);
+    } finally {
+      setIsBotTyping(false);
+    }
   };
 
-  const handleChatSubmit = useCallback((e) => {
+  const handleChatSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
@@ -72,21 +78,25 @@ function App() {
       });
     }
     
-    // Simulate bot response
-    setTimeout(() => {
-      let botResponse = `That's an excellent question about the ${selectedCountry} system! While I'm currently a prototype without a live database, issues relating to "${question}" are typically governed by the national constitution and electoral laws of ${selectedCountry}.`;
+    setIsBotTyping(true);
+    
+    try {
+      const prompt = `You are a helpful and concise election education assistant. The user is currently viewing the timeline for ${selectedCountry}. 
+      They are asking the following question: "${question}". 
+      If the question is about an election process, answer it specifically in the context of ${selectedCountry}. 
+      Keep your answer educational, accurate, and concise (3-4 sentences max). Avoid formatting with markdown if possible.`;
       
-      const lowerQ = question.toLowerCase();
-      if (lowerQ.includes("constitution") || lowerQ.includes("law")) {
-         botResponse = `The constitution is the supreme law of the land. In ${selectedCountry}, all electoral laws must align with it. If a law is challenged, the highest courts will review its constitutional validity.`;
-      } else if (lowerQ.includes("president") || lowerQ.includes("prime minister")) {
-         botResponse = `The head of state/government in ${selectedCountry} plays a crucial role. Check out the "Power Transition" phase on the timeline for details on how they take office!`;
-      } else if (lowerQ.includes("age") || lowerQ.includes("old") || lowerQ.includes("eligible")) {
-         botResponse = `In most democracies, including ${selectedCountry}, the standard voting age is 18. Candidate age requirements are often higher (e.g., 25 or 35 depending on the office).`;
-      }
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
       
-      setChatMessages(prev => [...prev, { type: 'bot', text: botResponse }]);
-    }, 1000);
+      setChatMessages(prev => [...prev, { type: 'bot', text }]);
+    } catch (error) {
+      console.error("Gemini Error:", error);
+      setChatMessages(prev => [...prev, { type: 'bot', text: "Sorry, I'm having trouble connecting to my AI brain. Please check your internet connection and try again." }]);
+    } finally {
+      setIsBotTyping(false);
+    }
   }, [chatInput, chatMessages, selectedCountry]);
 
   if (view === 'dashboard') {
@@ -247,6 +257,11 @@ function App() {
                 {msg.text}
               </div>
             ))}
+            {isBotTyping && (
+              <div className="message bot flex items-center gap-2">
+                <Loader2 className="animate-spin" size={16} /> Thinking...
+              </div>
+            )}
           </div>
           
           <div className="chat-presets">
