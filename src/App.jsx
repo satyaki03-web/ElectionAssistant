@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { electionData } from './data/electionData';
+import { analytics } from './lib/firebase';
+import { logEvent } from 'firebase/analytics';
 import InteractiveMap from './components/InteractiveMap';
 import { Globe, Clock, Users, AlertTriangle, MessageSquare, ArrowRight, X, Home, Map as MapIcon } from 'lucide-react';
 import './App.css';
@@ -12,20 +14,26 @@ function App() {
     { type: 'bot', text: 'Hi! I am your Election Education Assistant. Select a phase on the left to learn more, or ask me a question below.' }
   ]);
 
-  const countries = Object.keys(electionData);
-  const timelineData = electionData[selectedCountry];
+  const countries = useMemo(() => Object.keys(electionData), []);
+  const timelineData = useMemo(() => electionData[selectedCountry], [selectedCountry]);
   
-  const activePhase = activePhaseId 
+  const activePhase = useMemo(() => activePhaseId 
     ? timelineData.find(phase => phase.id === activePhaseId) 
-    : null;
+    : null, [activePhaseId, timelineData]);
 
-  const handleCountryChange = (country) => {
+  const handleCountryChange = useCallback((country) => {
     setSelectedCountry(country);
     setActivePhaseId(null);
     setChatMessages([
       { type: 'bot', text: `You are now viewing the election process for ${country}. Feel free to ask any questions!` }
     ]);
-  };
+    if (analytics) {
+      logEvent(analytics, 'select_content', {
+        content_type: 'country',
+        item_id: country
+      });
+    }
+  }, []);
 
   const [chatInput, setChatInput] = useState("");
 
@@ -49,7 +57,7 @@ function App() {
     }, 800);
   };
 
-  const handleChatSubmit = (e) => {
+  const handleChatSubmit = useCallback((e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
@@ -57,6 +65,12 @@ function App() {
     const newMessages = [...chatMessages, { type: 'user', text: question }];
     setChatMessages(newMessages);
     setChatInput("");
+
+    if (analytics) {
+      logEvent(analytics, 'chat_message_sent', {
+        question_length: question.length
+      });
+    }
     
     // Simulate bot response
     setTimeout(() => {
@@ -73,7 +87,7 @@ function App() {
       
       setChatMessages(prev => [...prev, { type: 'bot', text: botResponse }]);
     }, 1000);
-  };
+  }, [chatInput, chatMessages, selectedCountry]);
 
   if (view === 'dashboard') {
     return (
@@ -83,8 +97,8 @@ function App() {
           <h1 className="dashboard-title">Election Education Assistant</h1>
           <p className="dashboard-subtitle">Explore the democratic electoral process, timelines, and voting centers of countries around the world.</p>
           
-          <button className="explore-btn" onClick={() => setView('app')}>
-            <MapIcon size={20} />
+          <button className="explore-btn" onClick={() => setView('app')} aria-label="Explore Timelines">
+            <MapIcon size={20} aria-hidden="true" />
             Explore Timelines
           </button>
         </div>
@@ -95,9 +109,18 @@ function App() {
   return (
     <div className="app-container">
       {/* Header Section */}
-      <header className="header glass animate-fade-in">
-        <div className="title-section" style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setView('dashboard')} title="Back to Dashboard">
-          <Home className="text-primary" size={28} color="#3b82f6" />
+      <header className="header glass animate-fade-in" role="banner">
+        <div 
+          className="title-section" 
+          style={{ cursor: 'pointer', transition: 'transform 0.2s' }} 
+          onClick={() => setView('dashboard')} 
+          onKeyDown={(e) => e.key === 'Enter' && setView('dashboard')}
+          role="button"
+          tabIndex={0}
+          aria-label="Back to Dashboard"
+          title="Back to Dashboard"
+        >
+          <Home className="text-primary" size={28} color="#3b82f6" aria-hidden="true" />
           <h1 className="title hover-shrink">Election Education Assistant</h1>
         </div>
         
@@ -107,6 +130,8 @@ function App() {
               key={country}
               className={`country-btn ${selectedCountry === country ? 'active' : ''}`}
               onClick={() => handleCountryChange(country)}
+              aria-label={`Select ${country}`}
+              aria-pressed={selectedCountry === country}
             >
               {country}
             </button>
@@ -128,6 +153,11 @@ function App() {
                 key={phase.id}
                 className={`step-item ${activePhaseId === phase.id ? 'active' : ''}`}
                 onClick={() => setActivePhaseId(phase.id)}
+                onKeyDown={(e) => e.key === 'Enter' && setActivePhaseId(phase.id)}
+                role="button"
+                tabIndex={0}
+                aria-label={`View details for ${phase.title}`}
+                aria-expanded={activePhaseId === phase.id}
               >
                 <div 
                   className="step-indicator"
@@ -162,8 +192,8 @@ function App() {
                     </div>
                   </div>
                 </div>
-                <button className="close-btn" onClick={() => setActivePhaseId(null)} title="Close Details">
-                  <X size={24} />
+                <button className="close-btn" onClick={() => setActivePhaseId(null)} aria-label="Close Details" title="Close Details">
+                  <X size={24} aria-hidden="true" />
                 </button>
               </div>
               
@@ -220,11 +250,11 @@ function App() {
           </div>
           
           <div className="chat-presets">
-            <p style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', fontWeight: 500}}>Suggested questions:</p>
-            <button className="preset-btn" onClick={() => handleChatPreset("How does voting work?")}>
+            <p style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', fontWeight: 500}} id="suggested-questions">Suggested questions:</p>
+            <button className="preset-btn" onClick={() => handleChatPreset("How does voting work?")} aria-labelledby="suggested-questions">
               How does voting work?
             </button>
-            <button className="preset-btn" onClick={() => handleChatPreset("What happens if two candidates tie?")}>
+            <button className="preset-btn" onClick={() => handleChatPreset("What happens if two candidates tie?")} aria-labelledby="suggested-questions">
               What happens if two candidates tie?
             </button>
           </div>
@@ -236,9 +266,10 @@ function App() {
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               className="chat-input"
+              aria-label="Type your question"
             />
-            <button type="submit" className="chat-send-btn">
-              <ArrowRight size={18} />
+            <button type="submit" className="chat-send-btn" aria-label="Send Message">
+              <ArrowRight size={18} aria-hidden="true" />
             </button>
           </form>
         </aside>

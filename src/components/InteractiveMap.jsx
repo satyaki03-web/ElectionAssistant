@@ -31,7 +31,7 @@ const MapUpdater = ({ center, zoom }) => {
   return null;
 };
 
-const InteractiveMap = ({ selectedCountry }) => {
+const InteractiveMap = React.memo(({ selectedCountry }) => {
   const countryData = mapData[selectedCountry] || mapData['India'];
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -95,6 +95,7 @@ const InteractiveMap = ({ selectedCountry }) => {
             value={searchQuery}
             onChange={handleSearch}
             style={{ border: 'none', outline: 'none', width: '100%', padding: '4px 8px', fontSize: '0.95rem', background: 'transparent' }}
+            aria-label="Validate city or booth"
           />
         </div>
         
@@ -150,6 +151,6 @@ const InteractiveMap = ({ selectedCountry }) => {
       </MapContainer>
     </div>
   );
-};
+});
 
 export default InteractiveMap;
