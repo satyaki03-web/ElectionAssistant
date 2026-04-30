@@ -251,15 +251,15 @@ function App() {
             Civic Guide FAQ
           </div>
           
-          <div className="chat-messages">
+          <div className="chat-messages" aria-live="polite" aria-atomic="false">
             {chatMessages.map((msg, i) => (
               <div key={i} className={`message ${msg.type}`}>
                 {msg.text}
               </div>
             ))}
             {isBotTyping && (
-              <div className="message bot flex items-center gap-2">
-                <Loader2 className="animate-spin" size={16} /> Thinking...
+              <div className="message bot flex items-center gap-2" role="status">
+                <Loader2 className="animate-spin" size={16} aria-hidden="true" /> Thinking...
               </div>
             )}
           </div>

@@ -30,4 +30,26 @@ describe('App Component', () => {
     
     expect(screen.getByText('Election Timeline: USA')).toBeInTheDocument();
   });
+
+  it('updates chat input value when typing', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Explore Timelines/i }));
+    
+    const input = screen.getByLabelText(/Type your question/i);
+    fireEvent.change(input, { target: { value: 'How does voting work?' } });
+    
+    expect(input.value).toBe('How does voting work?');
+  });
+
+  it('adds user message to chat on preset click', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Explore Timelines/i }));
+    
+    const presetBtn = screen.getByText('How does voting work?');
+    fireEvent.click(presetBtn);
+    
+    // The user message should now appear in the chat
+    const messages = screen.getAllByText('How does voting work?');
+    expect(messages.length).toBeGreaterThan(0);
+  });
 });

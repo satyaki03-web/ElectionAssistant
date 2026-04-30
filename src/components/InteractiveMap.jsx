@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { MapPin, Info, Search, CheckCircle, XCircle } from 'lucide-react';
 import { mapData } from '../data/mapData';
+import { analytics } from '../lib/firebase';
+import { logEvent } from 'firebase/analytics';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default marker icons in React-Leaflet
@@ -77,8 +79,14 @@ const InteractiveMap = React.memo(({ selectedCountry }) => {
       if (marker) {
         setTimeout(() => marker.openPopup(), 1500);
       }
+      if (analytics) {
+        logEvent(analytics, 'search_station_found', { search_term: query, station_name: foundStation.name });
+      }
     } else {
       setSearchResult(false);
+      if (analytics) {
+        logEvent(analytics, 'search_station_not_found', { search_term: query });
+      }
     }
   };
 
